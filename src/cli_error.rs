@@ -7,6 +7,8 @@ pub type CliResult<T> = Result<T, CliError>;
 
 #[derive(Debug)]
 pub enum CliError {
+    ActixMailbox(actix::MailboxError),
+    CalcNone,
     ChronoParse(chrono::ParseError),
     Regex(regex::Error),
     Yahoo(yahoo_finance_api::YahooError),
@@ -30,9 +32,17 @@ impl From<yahoo_finance_api::YahooError> for CliError {
     }
 }
 
+impl From<actix::MailboxError> for CliError {
+    fn from(e: actix::MailboxError) -> Self {
+        CliError::ActixMailbox(e)
+    }
+}
+
 impl Display for CliError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let display_string = match self {
+            Self::ActixMailbox(inner) => inner.to_string(),
+            Self::CalcNone => String::from("Missing data"),
             Self::ChronoParse(inner) => inner.to_string(),
             Self::Regex(inner) => inner.to_string(),
             Self::Yahoo(inner) => match inner {
