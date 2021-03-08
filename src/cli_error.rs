@@ -1,5 +1,6 @@
 use std::{
     convert::From,
+    error::Error,
     fmt::{self, Display},
 };
 
@@ -13,6 +14,8 @@ pub enum CliError {
     Regex(regex::Error),
     Yahoo(yahoo_finance_api::YahooError),
 }
+
+impl Error for CliError {}
 
 impl From<chrono::ParseError> for CliError {
     fn from(e: chrono::ParseError) -> Self {
@@ -53,5 +56,29 @@ impl Display for CliError {
             },
         };
         write!(f, "{}", display_string)
+    }
+}
+
+#[derive(Debug)]
+pub struct SymbolError {
+    symbol: String,
+    error: CliError,
+}
+
+impl SymbolError {
+    pub fn new(symbol: String, error: CliError) -> Self {
+        SymbolError { symbol, error }
+    }
+}
+
+impl Error for SymbolError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
+impl Display for SymbolError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        write!(f, "Error with symbol {}: {}", self.symbol, self.error)
     }
 }

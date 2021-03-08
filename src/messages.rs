@@ -5,7 +5,7 @@ use actix::{
 use chrono::{DateTime, Utc};
 use yahoo_finance_api::Quote;
 
-use crate::{cli_error::CliError, model::ProcessedQuote};
+use crate::{cli_error::SymbolError, model::ProcessedQuote};
 
 pub struct FetchAll;
 
@@ -95,7 +95,7 @@ where
     }
 }
 
-pub struct HandleError(pub CliError);
+pub struct HandleError(pub SymbolError);
 
 impl Message for HandleError {
     type Result = ();

@@ -5,7 +5,7 @@ use yahoo_finance_api::YahooConnector;
 use std::time::Duration;
 
 use crate::{
-    cli_error::CliError,
+    cli_error::{CliError, SymbolError},
     messages::{
         CalcQuoteData, CalculatedData, Fetch, FetchAll, HandleError, PrintProcessedQuote,
         PrintString, ProcessQuote,
@@ -80,7 +80,8 @@ impl Handler<Fetch> for Fetcher {
                 let resp = match res {
                     Ok(resp) => resp,
                     Err(e) => {
-                        ErrorHandler::from_registry().do_send(HandleError(e.into()));
+                        ErrorHandler::from_registry()
+                            .do_send(HandleError(SymbolError::new(symbol, e.into())));
                         return fut::ready(()).into_actor(act);
                     }
                 };
@@ -88,7 +89,8 @@ impl Handler<Fetch> for Fetcher {
                 let quotes = match resp.quotes() {
                     Ok(quotes) => quotes,
                     Err(e) => {
-                        ErrorHandler::from_registry().do_send(HandleError(e.into()));
+                        ErrorHandler::from_registry()
+                            .do_send(HandleError(SymbolError::new(symbol, e.into())));
                         return fut::ready(()).into_actor(act);
                     }
                 };
@@ -136,7 +138,8 @@ impl Handler<ProcessQuote> for QuoteProcessor {
             let data = match addr.send(CalcQuoteData(quotes.clone())).await {
                 Ok(data) => data,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e.into()));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e.into())));
                     return;
                 }
             };
@@ -144,35 +147,40 @@ impl Handler<ProcessQuote> for QuoteProcessor {
             let current = match quotes.last().ok_or(CliError::CalcNone) {
                 Ok(&c) => c,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e)));
                     return;
                 }
             };
             let min = match data.min.ok_or(CliError::CalcNone) {
                 Ok(c) => c,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e)));
                     return;
                 }
             };
             let max = match data.max.ok_or(CliError::CalcNone) {
                 Ok(c) => c,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e)));
                     return;
                 }
             };
             let sma = match data.sma.unwrap().last().ok_or(CliError::CalcNone) {
                 Ok(&c) => c,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e)));
                     return;
                 }
             };
             let diff = match data.percent_diff.ok_or(CliError::CalcNone) {
                 Ok(c) => c,
                 Err(e) => {
-                    ErrorHandler::from_registry().do_send(HandleError(e));
+                    ErrorHandler::from_registry()
+                        .do_send(HandleError(SymbolError::new(msg.symbol, e)));
                     return;
                 }
             };
@@ -273,7 +281,7 @@ impl Handler<HandleError> for ErrorHandler {
     type Result = ();
 
     fn handle(&mut self, msg: HandleError, _ctx: &mut Self::Context) {
-        eprintln!("Error: {}", msg.0);
+        eprintln!("{}", msg.0);
     }
 }
 
